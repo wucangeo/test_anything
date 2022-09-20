@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <script src="https://cesiumjs.org/releases/1.68/Build/Cesium/Cesium.js"></script>
+    <link
+      href="https://cesiumjs.org/releases/1.68/Build/Cesium/Widgets/widgets.css"
+      rel="stylesheet"
+    />
+    <style>
+      body {
+        margin: 0px;
+      }
+      #cesiumContainer {
+        width: 100%;
+        height: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="cesiumContainer"></div>
+    <input
+      id="waterBtn"
+      type="submit"
+      value="淹没模拟"
+      style="position: absolute; right: 50px; top: 50px"
+    />
+    <!-- <script type="module" src="./cesium.js"></script> -->
+  </body>
+  <script>
+    Cesium.Ion.defaultAccessToken =
+      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI2MmQ2NzZjYS0yNjE0LTRlZDMtOTI1OS03NTcyZWE1Nzc3N2IiLCJpZCI6MTg1NjksInNjb3BlcyI6WyJhc3IiLCJnYyJdLCJpYXQiOjE1NzQwNjkyNTV9.EXe4qw0Gy6YflMITeQkQ4r6U4NyyWuyULdM-OxIMQ3o";
+    var worldTerrain = Cesium.createWorldTerrain({
+      requestWaterMask: true, // required for water effects
+      requestVertexNormals: true, // required for terrain lighting
+    });
+
+    var V = new Cesium.Viewer("cesiumContainer", {
+      geocoder: false,
+      homeButton: false,
+      sceneModePicker: false, //是否显示投影方式控件
+      baseLayerPicker: true, //是否显示图层选择控件
+      navigationHelpButton: false, //是否显示帮助信息控件
+      geocoder: false, //是否显示地名查找控件
+      animation: false, //是否显示动画控件
+      timeline: false, //是否显示时间线控件
+      fullscreenButton: false,
+      vrButton: false,
+      shadows: true, //影子
+      infoBox: false, //是否显示点击要素之后显示的信息
+      terrainProvider: worldTerrain,
+      //采用自行发布的地形服务，注意路径没有layer.json
+      //   terrainProvider: new Cesium.CesiumTerrainProvider({
+      //     url: "http://localhost:9003/terrain/4PfGI2DX/",
+      //     minimumLevel: 0,
+      //     maximumLevel: 15,
+      //   }),
+    });
+
+    var globe = V.scene.globe;
+    globe.depthTestAgainstTerrain = true;
+
+    V.camera.setView({
+      //定位到范围中心点
+      destination: Cesium.Cartesian3.fromDegrees(119.85, 30.53, 3000),
+      orientation: {
+        heading: Cesium.Math.toRadians(0), //1
+        pitch: Cesium.Math.toRadians(-20),
+        roll: 0,
+      },
+    });
+
+    let points = [
+      [119.35, 31.23],
+      [120.35, 31.23],
+      [120.35, 30.23],
+      [119.35, 30.23],
+    ];
+    let polygonArr = [];
+    for (let i = 0; i < points.length; i++) {
+      polygonArr.push(points[i][0]);
+      polygonArr.push(points[i][1]);
+      polygonArr.push(0);
+    }
+
+    var drawedEntity = null;
+
+    document.getElementById("waterBtn").onclick = function () {
+      if (drawedEntity) {
+        V.entities.remove(drawedEntity);
+      }
+      drawWater(800, polygonArr, 300);
+    };
+    /**
+     *
+     * @param {*} targetHeight 目标高度
+     * @param {*} adapCoordi  范围坐标
+     * @param {*} waterHeight 当前水高度
+     */
+    function drawWater(targetHeight, areaCoor, waterHeight) {
+      drawedEntity = V.entities.add({
+        polygon: {
+          hierarchy: new Cesium.PolygonHierarchy(
+            Cesium.Cartesian3.fromDegreesArrayHeights(areaCoor)
+          ),
+          perPositionHeight: true,
+          extrudedHeight: new Cesium.CallbackProperty(function () {
+            //此处用属性回调函数，直接设置extrudedHeight会导致闪烁。
+            waterHeight += 2;
+            if (waterHeight > targetHeight) {
+              waterHeight = targetHeight; //给个最大值
+            }
+            return waterHeight;
+          }, false),
+          material: new Cesium.Color.fromBytes(0, 191, 255, 100),
+        },
+      });
+    }
+  </script>
+</html>
